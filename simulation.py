@@ -69,8 +69,10 @@ def run_simulation(num_devices=10, time_units=2000, use_rl=False, devices=None):
             for i, d in enumerate(devices): # loop through devices
                 action_str = "transmitted" if actions[i] == 1 else "idle" # get action string
                 print(f" Device {i+1} p = {d.p:.4f} ({action_str})") # print device
-            print("-" * 30)        
+            print("-" * 30)    
+            
+    # calculate average collisions    
     cumulative_avg_collisions = np.cumsum(average_collisions_list) / (np.arange(1, time_units+1))
     print(f"Average collisions: {cumulative_avg_collisions[-1]:.4f}") # print average collisions
     print("-" * 30)
-    return np.cumsum(throughput), np.cumsum(collisions), devices, cumulative_avg_collisions  # return cumulative throughput and collisions and devices
+    return np.cumsum(throughput), np.cumsum(collisions), devices, cumulative_avg_collisions  # return cumulative throughput and collisions and devices and average collisions

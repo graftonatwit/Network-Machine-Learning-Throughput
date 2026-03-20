@@ -53,6 +53,7 @@ class RLDevice:
         elif action == 2:
             self.p = min(1.0, self.p + 0.02) # increase by 0.02
         # action == 1 means keep the same probability
+        
         self.p+=random.uniform(-0.01, 0.01) # add small random variation to encourage exploration, but only in the positive direction to prevent p from getting too low
         self.p = max(0.0, min(1.0, self.p)) # ensure p stays between 0 and 1
         return 1 if random.random() < self.p else 0, action # return both the action and the chosen action index for learning
