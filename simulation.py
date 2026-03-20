@@ -5,18 +5,21 @@ def run_simulation(num_devices=10, time_units=2000, use_rl=False, devices=None):
     
     if devices is None:
         if use_rl:
-            devices = [RLDevice(i) for i in range(num_devices)]
+            devices = [RLDevice(i) for i in range(num_devices)] # create RL devices
         else:
             devices = [Device(i) for i in range(num_devices)]
             
         
-
+    average_collisions_list = []
     throughput = [] # track successful transmissions
     collisions = [] # track collisions
     
-    print(f"Step 0 (initial probabilities): rl devices" if use_rl else "baseline devices")
+    latency_check = [] # track latency
+    
+    print(f"Step 0 (initial probabilities){('rl devices' if use_rl else 'baseline devices')}")
     for i, d in enumerate(devices):
-        print(f" Device {i} p = {d.p:.2f}")
+        print(f" Device {i} p = {d.p:.4f}")
+        
     print("-" * 30)
     
     for t in range(time_units):
@@ -36,15 +39,19 @@ def run_simulation(num_devices=10, time_units=2000, use_rl=False, devices=None):
         if total == 1:
             result = "success" # successful transmission
             reward = 1 # reward for success
+            collisions_this_step = 0
         elif total > 1:
             result = "collision" # collision occurred
             reward = -total # penalty for collision
+            collisions_this_step = total # track average collisions
         else:
             result = "idle" # no transmission
             reward = 0 # no reward for idle
+            collisions_this_step = 0 # track average collisions
             
+        average_collisions_list.append(collisions_this_step) # track average collisions
         if use_rl:
-            avg_p = sum(d.p for d in devices) / len(devices)
+            avg_p = sum(d.p for d in devices) / len(devices) # calculate average probability
             reward -= 0.1 * avg_p
         # update devices
         for i, d in enumerate(devices): # loop through devices to update them based on the result
@@ -58,9 +65,12 @@ def run_simulation(num_devices=10, time_units=2000, use_rl=False, devices=None):
 
         # --- print probabilities every 500 steps ---
         if (t + 1) % 500 == 0:
-            print(f"Step {t+1}: {('rl devices' if use_rl else 'baseline devices')}")
-            for i, d in enumerate(devices):
-                action_str = "transmitted" if actions[i] == 1 else "idle"
-                print(f" Device {i} p = {d.p:.4f} ({action_str})")
-            print("-" * 30)
-    return np.cumsum(throughput), np.cumsum(collisions), devices  # return cumulative throughput and collisions over time
+            print(f"Step {t+1}: {('rl devices' if use_rl else 'baseline devices')}") # print step
+            for i, d in enumerate(devices): # loop through devices
+                action_str = "transmitted" if actions[i] == 1 else "idle" # get action string
+                print(f" Device {i+1} p = {d.p:.4f} ({action_str})") # print device
+            print("-" * 30)        
+    cumulative_avg_collisions = np.cumsum(average_collisions_list) / (np.arange(1, time_units+1))
+    print(f"Average collisions: {cumulative_avg_collisions[-1]:.4f}") # print average collisions
+    print("-" * 30)
+    return np.cumsum(throughput), np.cumsum(collisions), devices, cumulative_avg_collisions  # return cumulative throughput and collisions and devices

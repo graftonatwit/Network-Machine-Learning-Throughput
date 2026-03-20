@@ -4,7 +4,7 @@ import numpy as np
 class Device:
     def __init__(self, id, p=0.5): # p = transmission probability
         self.id = id # unique identifier for the device
-        self.p = p  # transmission probability
+        self.p = random.uniform(0.1, 0.3)  # transmission probability
 
     def choose_action(self):
         return 1 if random.random() < self.p else 0 # 1 = transmit, 0 = idle
@@ -25,7 +25,7 @@ class Device:
 class RLDevice:
     def __init__(self, id): 
         self.id = id # unique identifier for the device
-        self.p = 0.3 # transmission probability
+        self.p = random.uniform(0.1, 0.3) # transmission probability
 
         # Q-table: state (last result) × actions
         self.q_table = { # states: "idle", "success", "collision"
@@ -43,8 +43,9 @@ class RLDevice:
         # epsilon-greedy
         if random.random() < self.epsilon: # explore
             action = random.randint(0, 2) # 0 = decrease, 1 = same, 2 = increase
+            self.epsilon = max(0.001, self.epsilon * 0.995) # decay epsilon
         else:
-            action = np.argmax(self.q_table[self.last_state]) # 
+            action = np.argmax(self.q_table[self.last_state]) # exploit
 
         # actions: 0 = decrease, 1 = same, 2 = increase
         if action == 0: # decrease probability
