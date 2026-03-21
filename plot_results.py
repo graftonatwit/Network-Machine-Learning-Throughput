@@ -11,20 +11,26 @@ num_runs = 10
 # --- BASELINE ---
 base_devices = [Device(i) for i in range(num_devices)]  # create baseline devices
 base_runs = []  # store all baseline runs
+base_averages = []  # store all baseline averages
+base_success_rates = []  # store all baseline success rates
 
 
 for num in range(num_runs):
-    t_base, c_base, _ , average_collisions_base = run_simulation( 
+    t_base, c_base, _ , average_collisions_base, success_rate = run_simulation( 
     num_devices=num_devices,
     time_units=num_steps,
     use_rl=False, 
     devices=base_devices
     )
     base_runs.append((t_base, c_base))
+    base_averages.append(average_collisions_base)
+    base_success_rates.append(success_rate)
 
 # --- RL (learning across runs) ---
 rl_devices = [RLDevice(i) for i in range(num_devices)]  # create RL devices
 rl_runs = []  # store all RL runs
+rl_averages = []  # store all RL averages
+rl_success_rates = []  # store all RL success rates
 
 
 # --- LOAD P VALUES ---
@@ -41,13 +47,15 @@ if os.path.exists("q_tables.npy"):  # if q_tables.npy exists
 
 
 for run in range(num_runs):
-    t_rl, c_rl, rl_devices, average_collisions_rl = run_simulation(
+    t_rl, c_rl, rl_devices, average_collisions_rl, success_rate = run_simulation(
         num_devices=num_devices,
         time_units=num_steps,
         use_rl=True,
         devices=rl_devices
     )
     rl_runs.append((t_rl, c_rl)) # store each run
+    rl_averages.append(average_collisions_rl)
+    rl_success_rates.append(success_rate)
     
     
 # save p values for all RL devices
@@ -63,10 +71,10 @@ np.save("q_tables.npy", q_tables) # save q_tables
 # 📊 PLOT 1: RL learning across runs
 # ==============================
 plt.figure()
-for i, (t_rl, _) in enumerate(rl_runs[5:]): # plot each run (5: skip the first 5 runs)
-    plt.plot(t_rl, linestyle="--", label=f"RL Run {i+1}") # plot each run
-for i, (t_base, _) in enumerate(base_runs[5:]): # plot each run (5: skip the first 5 runs)
-    plt.plot(t_base, linestyle="-", label=f"Baseline Run {i+1}")
+for i, (t_rl, _) in enumerate(rl_runs[-5:], 1): # plot each run start at 5
+    plt.plot(t_rl, linestyle="--", label=f"RL Run {len(rl_runs)-5 + i}") # plot each run
+for i, (t_base, _) in enumerate(base_runs[-5:], 1): # plot each run start at 5
+    plt.plot(t_base, linestyle="-", label=f"Baseline Run {len(base_runs) - 5 + i }")
 plt.legend()
 plt.title("RL Learning Across Runs vs Baseline")
 plt.xlabel("Time")
@@ -106,11 +114,29 @@ plt.show()
 # 📊 PLOT 4: Average Collisions
 # ==============================
 plt.figure()
-plt.plot(average_collisions_base, label="Baseline")
-plt.plot(average_collisions_rl, label="RL (Final Run)")
+for i, run in enumerate(rl_averages[-5:], 1):
+    plt.plot(run, linestyle="--", label=f"RL Run {len(rl_averages)-5+i}")
+    
+for i, run in enumerate(base_averages[-5:], 1):
+    plt.plot(run, linestyle="-", label=f"Baseline Run {len(base_averages)-5+i}")
 plt.legend()
 plt.title("Collision Comparison")
 plt.xlabel("Time")
-plt.ylabel("Average Collisions")
+plt.ylabel("Cumulative Average Collisions Over Time Units (Each Run)")
+plt.grid(True)
+plt.show()
+
+
+
+plt.figure()
+for i, run in enumerate(rl_success_rates[-5:], 1):
+    plt.plot(run, linestyle="--", label=f"RL Run {len(rl_success_rates)-5+i}")
+    
+for i, run in enumerate(base_success_rates[-5:], 1):
+    plt.plot(run, linestyle="-", label=f"Baseline Run {len(base_success_rates)-5+i}")
+plt.legend()
+plt.title("Success Rate Comparison")
+plt.xlabel("Time Units")
+plt.ylabel("Cumulative Success Rates Over Time Units (Each Run)")
 plt.grid(True)
 plt.show()
