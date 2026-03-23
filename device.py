@@ -43,7 +43,7 @@ class RLDevice:
         # epsilon-greedy
         if random.random() < self.epsilon: # explore
             action = random.randint(0, 2) # 0 = decrease, 1 = same, 2 = increase
-            self.epsilon = max(0.001, self.epsilon * 0.995) # decay epsilon
+            self.epsilon = max(0.0001, self.epsilon * 0.95) # decay epsilon
         else:
             action = np.argmax(self.q_table[self.last_state]) # exploit
 
@@ -54,8 +54,8 @@ class RLDevice:
             self.p = min(1.0, self.p + 0.02) # increase by 0.02
         # action == 1 means keep the same probability
         
-        self.p+=random.uniform(-0.01, 0.01) # add small random variation to encourage exploration, but only in the positive direction to prevent p from getting too low
-        self.p = max(0.0, min(1.0, self.p)) # ensure p stays between 0 and 1
+        self.p+=random.uniform(-0.001, 0.001) # add small random variation to encourage exploration, but only in the positive direction to prevent p from getting too low
+        self.p = max(0.001, min(1.0, self.p)) # ensure p stays between 0 and 1
         return 1 if random.random() < self.p else 0, action # return both the action and the chosen action index for learning
 
     def update(self, state, reward, action):
@@ -68,3 +68,27 @@ class RLDevice:
         )
 
         self.last_state = state # update the last state to the current state for the next iteration
+        
+class SarmaDevice:
+    def __init__(self, id):
+        self.id = id
+        self.p = random.uniform(0.1, 0.3)
+        self.step = 0.05  # adaptive step size
+
+    def choose_action(self):
+        return 1 if random.random() < self.p else 0
+
+    def update(self, result):
+        # Sarma-style adaptive adjustment
+        if result == "success":
+            self.p = min(0.9999, self.p + self.step * 0.5) # increase success rate
+            self.step = min(0.1, self.step * 1.1)  # increase confidence
+        elif result == "collision":
+            self.p = max(0.0001, self.p - self.step) # decrease success rate
+            self.step = max(0.01, self.step * 0.9)  # reduce aggressiveness
+        elif result == "idle":
+            self.p = min(0.9999, self.p + self.step) # increase success rate
+
+        # small randomness (like your other models)
+        self.p += random.uniform(-0.01, 0.01)  # add small random variation
+        self.p = max(0.0001, min(0.9999, self.p))  # ensure p stays between 0.0001 and 0.9999
