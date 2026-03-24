@@ -96,7 +96,7 @@ def run_simulation(num_devices=10, time_units=2000, use_rl=False, use_sarma=Fals
 
 
         # --- print probabilities every 1000 steps ---
-        if (t + 1) % 250 == 0:
+        if (t + 1) % 500 == 0:
             
             if use_rl:
                 print(f"Step {t+1}  rl devices ")

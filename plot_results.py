@@ -6,7 +6,7 @@ from simulation import run_simulation
 
 num_devices = 10
 num_steps = 1000
-num_runs = 2
+num_runs = 5
 
 # --- BASELINE ---
 
@@ -47,13 +47,28 @@ if os.path.exists("q_tables.npy"):  # if q_tables.npy exists
     for d, qt in zip(rl_devices, saved_q_tables):  # zip rl_devices and q_tables
         d.q_table = qt  # set the q_table for each device
         
-
+        
 
 # --- LOAD EPSILON ---
 if os.path.exists("epsilon_final.npy"):
     saved_epsilon = np.load("epsilon_final.npy")
     for d, e in zip(rl_devices, saved_epsilon):
         d.epsilon = float(e)
+        
+
+
+# --- RESET EPSILON ---
+RESET_EPSILON = False
+if RESET_EPSILON:
+    for d in rl_devices:
+        d.epsilon = 0.1
+    np.save("epsilon_final.npy", np.full(len(rl_devices), 0.1))
+# ---
+
+
+        
+
+
 
 
 # --- RUN RL SIMULATION ---
@@ -81,7 +96,8 @@ q_tables = [d.q_table for d in rl_devices] # store all q_tables
 np.save(f"q_tables_run{num_runs}.npy", q_tables) # save q_tables
 
 
-final_epsilons = [d.epsilon for d in rl_devices] # store all final epsilons
+
+final_epsilons = [d.epsilon for d in rl_devices]
 np.save("epsilon_final.npy", final_epsilons) # save
 
 
@@ -132,11 +148,11 @@ np.save("sarma_steps.npy", sarma_steps)
 # ==============================
 plt.figure()
 for i, (t_rl, _) in enumerate(rl_runs, 1): # plot each run 
-    plt.plot(t_rl, linestyle="--", label=f"RL Run {len(rl_runs)}") # plot each run
+    plt.plot(t_rl, linestyle="--", label=f"RL Run {i}") # plot each run
 for i, (t_base, _) in enumerate(base_runs, 1): # plot each run
-    plt.plot(t_base, linestyle="-", label=f"Baseline Run {len(base_runs)}")
+    plt.plot(t_base, linestyle="-", label=f"Baseline Run {i}")
 for i, (t_sarma, _) in enumerate(sarma_runs, 1): # plot each run
-    plt.plot(t_sarma, linestyle=":", label=f"Sarma Run {len(sarma_runs)}")
+    plt.plot(t_sarma, linestyle=":", label=f"Sarma Run {i}")
 plt.legend()
 plt.title("RL and Sarma Learning Across Runs vs Baseline")
 plt.xlabel("Time")
