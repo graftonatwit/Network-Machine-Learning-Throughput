@@ -5,7 +5,8 @@ class Device:
     def __init__(self, id, p=0.5): # p = transmission probability
         self.id = id # unique identifier for the device
         self.p = random.uniform(0.1, 0.3)  # transmission probability
-        self.success_streak = 0
+        self.success_streak = 0   # total successes this run
+        self.fairness_factor = 0.05  # how strongly fairness affects p
 
     def choose_action(self):
         return 1 if random.random() < self.p else 0 # 1 = transmit, 0 = idle
@@ -48,7 +49,8 @@ class RLDevice:
     def __init__(self, id): 
         self.id = id # unique identifier for the device
         self.p = random.uniform(0.1, 0.3) # transmission probability
-        
+        self.success_streak = 0   # total successes this run
+        self.fairness_factor = 0.01  # how strongly fairness affects p
         
 
         # Q-table: state (last result) × actions
@@ -69,13 +71,13 @@ class RLDevice:
         # epsilon-greedy
         if random.random() < self.epsilon: # explore
             action = random.randint(0, 2) # 0 = decrease, 1 = same, 2 = increase
-            self.epsilon = max(0.0001, self.epsilon * 0.999) # decay epsilon
+            self.epsilon = max(0.00001, self.epsilon * 0.999) # decay epsilon
         else:
             action = np.argmax(self.q_table[self.last_state]) # exploit
 
         # actions: 0 = decrease, 1 = same, 2 = increase
         if action == 0:  # decrease
-            self.p = max(0.01, self.p-0.05)   # multiplicative decrease
+            self.p = max(0.01, self.p-0.05)   # additive decrease
         elif action == 2:  # increase
             self.p = min(0.99, self.p + 0.02)  # additive increase
         # action == 1 means keep the same probability
@@ -119,7 +121,9 @@ class SarmaDevice:
         self.id = id
         self.p = random.uniform(0.1, 0.3)
         self.step = 0.05  # adaptive step size
-        self.success_streak = 0
+        self.success_streak = 0   # total successes this run
+        self.fairness_factor = 0.01  # how strongly fairness affects p
+        
 
     def choose_action(self):
         return 1 if random.random() < self.p else 0
@@ -153,6 +157,7 @@ class HybridDevice:
     def __init__(self, id):
         self.id = id
         self.p = random.uniform(0.1, 0.3)
+        self.fairness_factor = 0.01  # how strongly fairness affects p
 
         # RL part (decision-making)
         self.q_table = {
@@ -174,7 +179,7 @@ class HybridDevice:
         # --- RL decision ---
         if random.random() < self.epsilon:
             action = random.randint(0, 2)
-            self.epsilon = max(0.01, self.epsilon * 0.9995)
+            self.epsilon = max(0.00001, self.epsilon * 0.9995)
         else:
             action = np.argmax(self.q_table[self.last_state])
 
@@ -231,7 +236,9 @@ class HybridDevice:
 class BanditDevice:
     def __init__(self, id):
         self.id = id
-        self.p = random.uniform(0.1, 0.3)
+        self.p = random.uniform(0.2, 0.5)
+        self.success_streak = 0   # total successes this run
+        self.fairness_factor = 0.01  # how strongly fairness affects p
 
         # actions: 0 = decrease, 1 = same, 2 = increase
         self.counts = [1, 1, 1]   # avoid divide-by-zero
@@ -239,11 +246,11 @@ class BanditDevice:
 
         self.total_steps = 1
 
-    def choose_action(self):
+    def choose_action(self, all_bandit_devices):
         # --- UCB formula ---
         ucb_values = []
         for a in range(3):
-            bonus = np.sqrt(2 * np.log(self.total_steps) / self.counts[a])  
+            bonus = np.sqrt(0.5 * np.log(self.total_steps) / self.counts[a])  
             ucb = self.values[a] + bonus 
             ucb_values.append(ucb)
 
@@ -251,13 +258,19 @@ class BanditDevice:
 
         # --- apply action ---
         if action == 0:
-            self.p = max(0.01, self.p * 0.9)  # gently decrease
+            self.p = max(0.05, self.p - 0.05)  # gently decrease
         elif action == 2:
             self.p = min(0.99, self.p + 0.05) # gently increase
+        
 
         # small noise
         self.p += random.uniform(-0.002, 0.002)
 
+        avg_success = np.mean([d.success_streak for d in all_bandit_devices])
+        diff = self.success_streak - avg_success
+        fairness_adjustment = -self.fairness_factor * diff
+        self.p += fairness_adjustment
+        
         # clamp
         self.p = max(0.001, min(0.99, self.p))
 
@@ -272,6 +285,6 @@ class BanditDevice:
         self.counts[action] += 1
 
         # incremental mean update
-        n = self.counts[action]
-        old = self.values[action]
-        self.values[action] = old + (norm_reward - old) / n
+        n = self.counts[action] # avoid divide-by-zero
+        old = self.values[action] # avoid divide-by-zero
+        self.values[action] = old + (norm_reward - old) / n # new value = old value + (new reward - old reward) / new count

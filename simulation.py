@@ -29,7 +29,7 @@ def run_simulation(num_devices=10, time_units=2000, use_rl=False, use_sarma=Fals
     for t in range(time_units):
         actions = [] # track actions of all devices
         chosen_actions = [] # track chosen actions for RL devices
-        individual_states = [] # track actions of all devices
+        individual_rewards = [] # track individual rewards of all devices
 
         for i, d in enumerate(devices):
             if use_rl:
@@ -46,7 +46,7 @@ def run_simulation(num_devices=10, time_units=2000, use_rl=False, use_sarma=Fals
                 chosen_actions.append(action) # append the action index to chosen_actions for learning
                 
             elif use_bandit:
-                transmit, action = d.choose_action() # get both the transmit decision and the action index for hybrid devices
+                transmit, action = d.choose_action(devices) # get both the transmit decision and the action index for hybrid devices
                 actions.append(transmit) # append the transmit decision (1 or 0) to actions
                 chosen_actions.append(action) # append the action index to chosen_actions for learning
 
@@ -84,8 +84,9 @@ def run_simulation(num_devices=10, time_units=2000, use_rl=False, use_sarma=Fals
             avg_p = sum(d.p for d in devices) / len(devices)
             global_reward = 1 # reward for success
             collisions_this_step = 0 # track average collisions
-            # winner = actions.index(1) # index of the winner
-            # success_counts[winner] += 1 # track number of successful transmissions
+            winner = actions.index(1) # index of the winner
+            success_counts[winner] += 1 # track number of successful transmissions
+            devices[winner].success_streak += 1 # track consecutive successful transmissions
         elif total > 1:
             result = "collision" # collision occurred
             avg_p = sum(d.p for d in devices) / len(devices)
@@ -98,21 +99,22 @@ def run_simulation(num_devices=10, time_units=2000, use_rl=False, use_sarma=Fals
             collisions_this_step = 0 # track average collisions
         
         
-        # for i, d in enumerate(devices):
-        #     if result == "success":
-        #         if i == winner:
-        #             individual_states.append("success")
-        #         else:
-        #             individual_states.append("idle")
-
-        #     elif result == "collision":
-        #         if actions[i] == 1:
-        #             individual_states.append("collision")
-        #         else:
-        #             individual_states.append("idle")
-
-        #     else:
-        #         individual_states.append("idle") # idle state for baseline devices
+        for i, d in enumerate(devices):
+            if total == 1:
+                # one device succeeded
+                if actions[i] == 1:
+                    individual_rewards.append(1)  # successful transmission
+                else:
+                    individual_rewards.append(0)  # idle
+            elif total > 1:
+                # collision
+                if actions[i] == 1:
+                    individual_rewards.append(-1)  # collided
+                else:
+                    individual_rewards.append(0)  # idle
+            else:
+                # idle
+                individual_rewards.append(0)
         
         
         average_collisions_list.append(collisions_this_step) # track average collisions
@@ -164,13 +166,22 @@ def run_simulation(num_devices=10, time_units=2000, use_rl=False, use_sarma=Fals
             if use_sarma:
                 d.update(result)
             elif use_rl:
-                d.update(result, global_reward, chosen_actions[i])
+                d.update(result, individual_rewards[i], chosen_actions[i])
             elif use_hybrid:
-                d.update(result, global_reward, chosen_actions[i])
+                d.update(result, individual_rewards[i], chosen_actions[i])
             elif use_bandit:
-                d.update(global_reward, chosen_actions[i])
+                d.update(individual_rewards[i], chosen_actions[i])
             else:
                 d.update(result)
+                
+                
+
+        avg_success = np.mean([d.success_streak for d in devices])
+
+        for d in devices:
+            diff = d.success_streak - avg_success  # positive → dominating, negative → lagging
+            fairness_adjustment = -d.fairness_factor * diff/(avg_success+1) # adjust fairness
+            d.p = max(0.01, min(0.99, d.p + fairness_adjustment)) # ensure p is within [0.001, 0.99]
 
         # --- print probabilities every 1000 steps ---
         if (t + 1) % 250 == 0:

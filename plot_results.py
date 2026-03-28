@@ -228,9 +228,24 @@ if os.path.exists("bandit_counts.npy"):
     saved_counts = np.load("bandit_counts.npy", allow_pickle=True)
     for d, c in zip(bandit_devices, saved_counts):
         d.counts = c
+        
+        
+# collect current p for each device
+if os.path.exists("bandit_p_values.npy"):
+    saved_p = np.load("bandit_p_values.npy")
+    for d, p in zip(bandit_devices, saved_p):
+        d.p = float(p)
+        
+        
+# collect current total steps for each device
+if os.path.exists("bandit_steps.npy"):
+    saved_steps = np.load("bandit_steps.npy")
+    for d, s in zip(bandit_devices, saved_steps):
+        d.total_steps = int(s)
 
 
 for run in range(num_runs):
+    
     t_bandit, c_bandit, bandit_devices, average_collisions_bandit, success_rate, epsilon, average_bandit = run_simulation(
         num_devices=num_devices,
         time_units=num_steps,
@@ -249,10 +264,14 @@ for run in range(num_runs):
 # --- SAVE BANDIT STATE ---
 values_list = [d.values for d in bandit_devices]   # list of action value arrays
 counts_list = [d.counts for d in bandit_devices]   # list of action count arrays
+p_values = [d.p for d in bandit_devices]  # collect current p for each device
+bandit_steps = [d.total_steps for d in bandit_devices]  # collect current total steps for each device
+
 
 np.save("bandit_values.npy", values_list) # save
 np.save("bandit_counts.npy", counts_list) # save
-
+np.save("bandit_p_values.npy", p_values) # save
+np.save("bandit_steps.npy", bandit_steps)
 
 
 # ==============================
